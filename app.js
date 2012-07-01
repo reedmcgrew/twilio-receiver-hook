@@ -1,52 +1,46 @@
-/**
- * Module dependencies.
- */
-var express = require('express')
-  , routes = require('./routes')
-  , settings = require('./settings')
+// Set-up Hook
+var settings = require('./settings')
   , hookio = require('hook.io');
-
-// Configure Hook
 var twilioReceiverHook = hookio.createHook({
   "name": "twilioreceiverhook",
 });
 
-// Configure Web Server
-var app = module.exports = express.createServer();
-app.configure(function(){
-  app.set('views', __dirname + '/views');
-  app.set('view engine', 'jade');
-  app.use(express.bodyParser());
-  app.use(express.methodOverride());
-  app.use(app.router);
-  app.use(express.static(__dirname + '/public'));
+// Set-up Web Server
+var express = require('express');
+var webserver = module.exports = express.createServer();
+webserver.configure(function(){
+  webserver.use(express.bodyParser());
+  webserver.use(express.methodOverride());
+  webserver.use(webserver.router);
+  webserver.use(express.static(__dirname + '/public'));
 });
-
-app.configure('development', function(){
-  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
+webserver.configure('development', function(){
+  webserver.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
 });
-
-app.configure('production', function(){
-  app.use(express.errorHandler());
+webserver.configure('production', function(){
+  webserver.use(express.errorHandler());
 });
 
 // Routes
-var receiverController = function(req,res){
-    console.log("hello!");
-    console.log(req.query);
-    twilioReceiverHook.emit("hello",{stuff:"stuff",moreStuff:"moreStuff"});
-    res.send(200);
+var createReceiver = function(hook){
+    return function(req,res){
+        var payload = req.query;
+        console.log("Received request:");
+        console.log(payload);
+        hook.emit("recvSms",{message:payload.Body,from:payload.From});
+        res.send(200);
+    };
 };
-app.get('/', receiverController);
+
+var receiverController = createReceiver(twilioReceiverHook);
+webserver.get('/', receiverController);
 
 
 // Start hook and server
 twilioReceiverHook.on('hook::ready', function(){
-    app.listen(settings.port, function(){
-        console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
-        
+    webserver.listen(settings.port, function(){
+        console.log("Webserver listening on %d in %s mode", webserver.address().port, webserver.settings.env);
     });
 });
-
 twilioReceiverHook.start();
 
