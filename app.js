@@ -33,6 +33,7 @@ app.configure('production', function(){
 // Routes
 var receiverController = function(req,res){
     console.log("hello!");
+    console.log(req.query);
     twilioReceiverHook.emit("hello",{stuff:"stuff",moreStuff:"moreStuff"});
     res.send(200);
 };
